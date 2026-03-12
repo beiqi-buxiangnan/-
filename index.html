@@ -3,273 +3,256 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>⚠️ 逃离霍金斯 | 燕砸的专属宇宙</title>
+    <title>⚠️ 逃离霍金斯 | 婧怡的专属宇宙</title>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: sans-serif; -webkit-tap-highlight-color: transparent; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; font-family: sans-serif; -webkit-tap-highlight-color: transparent; overflow: hidden; }
         
-        /* ==========================================
-           第一重世界：密室逃脱系统
-           ========================================== */
-        #game-container { position: relative; width: 100%; height: 100%; display: none; background: #000; z-index: 9000; }
-        
+        /* 强制横屏提示 (如果是竖屏则全屏遮挡) */
+        #rotate-prompt { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #050505; color: #e50914; z-index: 9999999; flex-direction: column; justify-content: center; align-items: center; font-size: 24px; text-align: center; letter-spacing: 2px; }
+        @media screen and (orientation: portrait) { #rotate-prompt { display: flex; } }
+
+        /* 核心：16:9 比例锁定容器，防止任何画面压缩和热区错位 */
+        #game-wrapper { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; background: #000; }
+        #game-container { position: relative; width: 100vw; height: 56.25vw; max-height: 100vh; max-width: 177.78vh; display: none; background: #000; overflow: hidden; z-index: 9000; box-shadow: 0 0 50px rgba(0,0,0,0.8); }
+
         /* 顶部物品栏 */
-        #inventory { position: absolute; top: 0; left: 0; width: 100%; height: 70px; background: rgba(0,0,0,0.85); border-bottom: 2px solid #555; display: flex; align-items: center; padding: 0 10px; z-index: 9500; box-sizing: border-box; }
-        .inv-box { width: 50px; height: 50px; border: 2px solid #444; margin-right: 10px; background-size: contain; background-repeat: no-repeat; background-position: center; border-radius: 5px; transition: 0.2s; cursor: pointer; }
+        #inventory { position: absolute; top: 0; left: 0; width: 100%; height: 15%; background: rgba(0,0,0,0.85); border-bottom: 2px solid #555; display: flex; align-items: center; padding: 0 2%; z-index: 9500; box-sizing: border-box; }
+        .inv-box { width: 8vh; height: 8vh; border: 2px solid #444; margin-right: 10px; background-size: contain; background-repeat: no-repeat; background-position: center; border-radius: 5px; transition: 0.2s; cursor: pointer; }
         .inv-box.selected { border-color: #e50914; box-shadow: 0 0 15px rgba(229,9,20,0.8); transform: scale(1.1); }
         
         /* 底部对话/提示框 */
-        #dialogue { position: absolute; bottom: 0; left: 0; width: 100%; height: 100px; background: rgba(0,0,0,0.9); border-top: 2px solid #e50914; color: #fff; padding: 15px 20px; font-size: 15px; line-height: 1.5; box-sizing: border-box; z-index: 9500; text-shadow: 1px 1px 2px #000; }
+        #dialogue { position: absolute; bottom: 0; left: 0; width: 100%; height: 20%; background: rgba(0,0,0,0.9); border-top: 2px solid #e50914; color: #fff; padding: 2% 4%; font-size: 2.5vh; line-height: 1.5; box-sizing: border-box; z-index: 9500; text-shadow: 1px 1px 2px #000; }
 
         /* 场景切换视图 */
-        .scene { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-size: cover; background-position: center; opacity: 0; pointer-events: none; transition: opacity 0.5s ease; }
+        .scene { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-size: 100% 100%; background-position: center; opacity: 0; pointer-events: none; transition: opacity 0.5s ease; }
         .scene.active { opacity: 1; pointer-events: auto; }
         
-        /* 场景切换箭头 */
-        .nav-arrow { position: absolute; top: 50%; transform: translateY(-50%); font-size: 40px; color: rgba(255,255,255,0.7); cursor: pointer; text-shadow: 0 0 10px #000; z-index: 9100; padding: 20px; }
+        .nav-arrow { position: absolute; top: 50%; transform: translateY(-50%); font-size: 6vh; color: rgba(255,255,255,0.7); cursor: pointer; text-shadow: 0 0 10px #000; z-index: 9100; padding: 20px; }
         .nav-arrow.left { left: 0; } .nav-arrow.right { right: 0; }
         .nav-arrow:active { color: #e50914; }
 
-        /* 真正的隐形互动热区 */
+        /* 隐形互动热区 */
         .hotspot { position: absolute; cursor: pointer; border: none; background: transparent; }
         .hotspot:active { background: rgba(255,255,255,0.1); border-radius: 10px; }
 
-        /* 特殊 UI 弹窗 */
+        /* UI 弹窗 */
         .puzzle-modal { position: absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); display:none; flex-direction:column; justify-content:center; align-items:center; z-index: 9600; }
-        .close-btn { position:absolute; top:20px; right:20px; font-size:35px; color:#fff; cursor:pointer; }
+        .close-btn { position:absolute; top:20px; right:20px; font-size:5vh; color:#fff; cursor:pointer; }
         
-        /* 字母墙弹窗样式 */
-        #alphabet-wall { width: 90%; max-width: 400px; background: #2c2520; background-image: repeating-linear-gradient(45deg, rgba(0,0,0,0.1) 0px, rgba(0,0,0,0.1) 2px, transparent 2px, transparent 4px); padding: 20px; border-radius: 10px; box-shadow: inset 0 0 50px #000; }
-        .letter-row { display: flex; justify-content: space-around; margin-bottom: 30px; }
+        /* 字母墙 */
+        #alphabet-wall { width: 80%; background: #2c2520; background-image: repeating-linear-gradient(45deg, rgba(0,0,0,0.1) 0px, rgba(0,0,0,0.1) 2px, transparent 2px, transparent 4px); padding: 20px; border-radius: 10px; box-shadow: inset 0 0 50px #000; }
+        .letter-row { display: flex; justify-content: space-around; margin-bottom: 2vh; }
         .letter-node { display: flex; flex-direction: column; align-items: center; width: 30px; }
-        .bulb { width: 15px; height: 15px; border-radius: 50%; background: #333; margin-bottom: 5px; transition: all 0.1s; }
-        .char { color: #000; font-family: 'Courier New', monospace; font-weight: bold; font-size: 22px; -webkit-text-stroke: 1px rgba(255,255,255,0.5); }
+        .bulb { width: 2vh; height: 2vh; border-radius: 50%; background: #333; margin-bottom: 5px; transition: all 0.1s; }
+        .char { color: #000; font-family: 'Courier New', monospace; font-weight: bold; font-size: 3vh; -webkit-text-stroke: 1px rgba(255,255,255,0.5); }
 
-        /* 电脑终端解密 UI */
-        #terminal { background: #001100; border: 10px solid #333; padding: 20px; border-radius: 10px; width: 80%; max-width: 350px; font-family: 'Courier New', monospace; color: #0f0; box-shadow: 0 0 30px #0f0 inset; }
-        .term-input { background: #000; border: none; color: #0f0; font-family: 'Courier New', monospace; font-size: 20px; width: 100px; outline: none; border-bottom: 2px solid #0f0; text-transform: uppercase; text-align: center;}
+        /* 电脑终端 */
+        #terminal { background: #001100; border: 5px solid #333; padding: 20px; border-radius: 10px; width: 70%; font-family: 'Courier New', monospace; color: #0f0; box-shadow: 0 0 30px #0f0 inset; font-size: 2.5vh; }
+        .term-input { background: #000; border: none; color: #0f0; font-family: 'Courier New', monospace; font-size: 3vh; width: 120px; outline: none; border-bottom: 2px solid #0f0; text-transform: uppercase; text-align: center;}
 
-        /* 魔王与战斗 */
-        #demo-monster { width: 250%; max-width: 600px; position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); filter: drop-shadow(0 0 20px #e50914); animation: breathe 2s infinite alternate; cursor: pointer; }
-        @keyframes breathe { 0% { transform: translate(-50%, -50%) scale(1); } 100% { transform: translate(-50%, -50%) scale(1.05); } }
-        
-        #power-btn { display:none; position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%); background: #e50914; color: #fff; padding: 15px 30px; font-size: 18px; font-weight: bold; border: none; border-radius: 30px; z-index: 9500; box-shadow: 0 0 20px #e50914; cursor: pointer; }
+        /* 魔王 */
+        #demo-monster { width: 30%; position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%) scale(1.2); filter: drop-shadow(0 0 20px #e50914); animation: breathe 2s infinite alternate; cursor: pointer; }
+        @keyframes breathe { 0% { transform: translate(-50%, -50%) scale(1.2); } 100% { transform: translate(-50%, -50%) scale(1.3); } }
+        #power-btn { display:none; position: absolute; bottom: 25%; left: 50%; transform: translateX(-50%); background: #e50914; color: #fff; padding: 2vh 4vh; font-size: 3vh; font-weight: bold; border: none; border-radius: 30px; z-index: 9500; box-shadow: 0 0 20px #e50914; cursor: pointer; }
 
-        /* 转场白屏 */
         #white-flash { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #fff; z-index: 10000; opacity: 0; pointer-events: none; transition: opacity 2s ease; }
 
-        /* 开始屏幕 */
+        /* 加载与开始屏幕 */
         #init-screen { position: fixed; top:0; left:0; width:100%; height:100%; background:#050505; color:#e50914; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index: 99999; }
+        #loading-text { color: #aaa; font-family: monospace; margin-top: 20px; font-size: 18px; }
+        #start-btn { display: none; background:transparent; border:2px solid #e50914; color:#e50914; padding:15px 30px; font-size:24px; cursor:pointer; margin-top: 30px; border-radius: 5px; }
 
-        /* ==========================================
-           第二重世界：手账贺卡系统
-           ========================================== */
+        /* 手账世界 (适配横屏) */
         #scrapbook-world { position: fixed; top: 0; left: 0; width: 100%; height: 100%; font-family: 'Ma Shan Zheng', cursive, sans-serif; background-color: #fdfaf3; background-image: radial-gradient(#d1cbbd 1.5px, transparent 1.5px); background-size: 25px 25px; color: #4a4a4a; z-index: 100; opacity: 0; pointer-events: none; }
-        .page { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; padding: 20px; box-sizing: border-box; opacity: 0; visibility: hidden; transform: translateX(100%); transition: all 0.6s ease; overflow-y: auto; overflow-x: hidden; }
+        .page { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: row; align-items: center; justify-content: space-evenly; padding: 20px; box-sizing: border-box; opacity: 0; visibility: hidden; transform: translateX(100%); transition: all 0.6s ease; }
         .page.active { opacity: 1; visibility: visible; transform: translateX(0); pointer-events: auto;}
         .page.prev { transform: translateX(-100%); }
-        .polaroid { background: white; padding: 10px 10px 35px 10px; box-shadow: 0 10px 20px rgba(0,0,0,0.15); border-radius: 4px; position: relative; max-width: 80%; margin: 20px auto; }
-        .polaroid img { width: 100%; max-height: 40vh; object-fit: cover; border-radius: 2px; }
-        .sticker-png { width: 70%; max-width: 250px; height: auto; filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.2)) drop-shadow(0px 0px 2px white); margin: 20px auto; }
-        .washi-tape { position: absolute; height: 35px; width: 120px; background-color: rgba(255, 182, 193, 0.7); mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%); -webkit-mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%); z-index: 10; box-shadow: 1px 1px 3px rgba(0,0,0,0.1); }
-        .tape-blue { background-color: rgba(135,206,235,0.7); } .tape-yellow { background-color: rgba(255, 223, 112, 0.7); } .tape-purple { background-color: rgba(200, 162, 200, 0.7); }
-        .text-block { font-size: 24px; line-height: 1.6; text-align: center; margin: 15px 0; text-shadow: 1px 1px 0px white; z-index: 5; padding: 0 15px; }
-        .highlight { color: #ff6b81; font-size: 28px; } .highlight-blue { color: #4facfe; font-size: 26px; }
-        .nav-btn { background: #ff7e67; color: white; border: none; padding: 12px 30px; font-size: 20px; font-family: inherit; border-radius: 30px; cursor: pointer; box-shadow: 0 6px 12px rgba(255, 126, 103, 0.3); margin-top: auto; margin-bottom: 30px; transition: transform 0.2s; }
-        .luhan-logo { width: 80px; position: absolute; z-index: 20; filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.3)); animation: float 3s infinite ease-in-out; }
+        .polaroid { background: white; padding: 10px 10px 35px 10px; box-shadow: 0 10px 20px rgba(0,0,0,0.15); border-radius: 4px; position: relative; max-width: 40%; }
+        .polaroid img { width: 100%; max-height: 60vh; object-fit: cover; border-radius: 2px; }
+        .text-container { width: 45%; display: flex; flex-direction: column; align-items: center; }
+        .sticker-png { width: 80%; max-width: 250px; height: auto; filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.2)) drop-shadow(0px 0px 2px white); }
+        .text-block { font-size: 3vh; line-height: 1.6; text-align: center; margin: 15px 0; text-shadow: 1px 1px 0px white; }
+        .highlight { color: #ff6b81; font-size: 4vh; } .highlight-blue { color: #4facfe; font-size: 4vh; }
+        .nav-btn { background: #ff7e67; color: white; border: none; padding: 2vh 4vh; font-size: 2.5vh; border-radius: 30px; cursor: pointer; box-shadow: 0 6px 12px rgba(255, 126, 103, 0.3); margin-top: 20px; }
     </style>
 </head>
 <body>
 
-    <audio id="st-bgm" loop><source src="st_bgm.mp3" type="audio/mpeg"></audio>
-    <audio id="happy-bgm" loop><source src="music.mp3" type="audio/mpeg"></audio>
+    <div id="rotate-prompt">
+        <div style="font-size: 50px; margin-bottom: 20px;">📱🔄</div>
+        警告：检测到空间磁场异常<br>请将手机<span style="font-weight:bold; text-decoration:underline;">横屏</span>以稳定裂缝
+    </div>
+
+    <audio id="st-bgm" src="st_bgm.mp3" preload="auto" loop></audio>
+    <audio id="happy-bgm" src="music.mp3" preload="auto" loop></audio>
 
     <div id="white-flash"></div>
 
     <div id="init-screen">
-        <h1 style="font-family: 'Cinzel', serif; letter-spacing: 5px; text-align:center;">ENTER<br>THE UPSIDE DOWN</h1>
-        <p style="color: #666; margin-bottom: 40px;">致 婧怡 </p>
-        <button style="background:transparent; border:2px solid #e50914; color:#e50914; padding:15px 30px; font-size:20px; cursor:pointer;" onclick="startGame()">开始逃脱</button>
+        <h1 style="font-family: 'Cinzel', serif; letter-spacing: 5px; text-align:center; font-size: 4vh;">ENTER<br>THE UPSIDE DOWN</h1>
+        <p style="color: #666; font-size: 2vh;">致 婧怡 / 请戴上耳机，调大音量</p>
+        <div id="loading-text">正在破解霍金斯实验室防火墙... (加载资源中)</div>
+        <button id="start-btn" onclick="startGame()">建立连接 (开始逃脱)</button>
     </div>
 
-    <div id="game-container">
-        
-        <div id="inventory">
-            <span style="color:#aaa; margin-right: 10px; font-size: 14px;">背包:</span>
-            <div id="inv-item-tape" class="inv-box" style="display:none; background-image:url('item_tape.png');" onclick="selectItem('tape')"></div>
-            <div id="inv-item-bat" class="inv-box" style="display:none; background-image:url('item_bat.png');" onclick="selectItem('bat')"></div>
-        </div>
+    <div id="game-wrapper">
+        <div id="game-container">
+            <div id="inventory">
+                <span style="color:#aaa; margin-right: 10px; font-size: 2vh;">背包:</span>
+                <div id="inv-item-tape" class="inv-box" style="display:none; background-image:url('item_tape.png');" onclick="selectItem('tape')"></div>
+                <div id="inv-item-bat" class="inv-box" style="display:none; background-image:url('item_bat.png');" onclick="selectItem('bat')"></div>
+            </div>
 
-        <div id="dialogue">我似乎被困在了这里。必须找到线索逃出去，有人在等我过生日。先四处看看吧...</div>
+            <div id="dialogue">我似乎被困在了这里。必须找到线索逃出去，有人在等我过生日。先四处看看吧...</div>
 
-        <div id="scene-livingroom" class="scene active" style="background-image: url('bg_livingroom.jpg');">
-            <div class="hotspot" style="top: 60%; left: 45%; width: 22%; height: 30%;" onclick="interact('walkman')"></div>
-            <div class="hotspot" style="top: 10%; left: 20%; width: 70%; height: 45%;" onclick="interact('wall')"></div>
-            <div class="hotspot" style="top: 55%; left: 68%; width: 30%; height: 35%;" onclick="interact('safe')"></div>
-            
-            <div class="nav-arrow left" onclick="switchScene('scene-lab')">❮ 实验室</div>
-            <div class="nav-arrow right" onclick="switchScene('scene-gate')">大门 ❯</div>
-        </div>
+            <div id="scene-livingroom" class="scene active" style="background-image: url('bg_livingroom.jpg');">
+                <div class="hotspot" style="top: 60%; left: 45%; width: 22%; height: 30%;" onclick="interact('walkman')"></div>
+                <div class="hotspot" style="top: 10%; left: 20%; width: 70%; height: 45%;" onclick="interact('wall')"></div>
+                <div class="hotspot" style="top: 55%; left: 68%; width: 30%; height: 35%;" onclick="interact('safe')"></div>
+                <div class="nav-arrow left" onclick="switchScene('scene-lab')">❮ </div>
+                <div class="nav-arrow right" onclick="switchScene('scene-gate')"> ❯</div>
+            </div>
 
-        <div id="scene-lab" class="scene" style="background-image: url('bg_lab.jpg');">
-            <div class="hotspot" style="top: 25%; left: 35%; width: 35%; height: 45%;" onclick="interact('terminal')"></div>
-            <div class="nav-arrow right" onclick="switchScene('scene-livingroom')">客厅 ❯</div>
-        </div>
+            <div id="scene-lab" class="scene" style="background-image: url('bg_lab.jpg');">
+                <div class="hotspot" style="top: 25%; left: 35%; width: 35%; height: 45%;" onclick="interact('terminal')"></div>
+                <div class="nav-arrow right" onclick="switchScene('scene-livingroom')"> ❯</div>
+            </div>
 
-        <div id="scene-gate" class="scene" style="background-image: url('bg_gate.jpg');">
-            <img src="demo.png" id="demo-monster" onclick="interact('demogorgon')">
-            <button id="power-btn">长按爆发超能力！</button>
-            <div class="nav-arrow left" onclick="switchScene('scene-livingroom')">❮ 客厅</div>
-        </div>
+            <div id="scene-gate" class="scene" style="background-image: url('bg_gate.jpg');">
+                <img src="demo.png" id="demo-monster" onclick="interact('demogorgon')">
+                <button id="power-btn">长按爆发超能力！</button>
+                <div class="nav-arrow left" onclick="switchScene('scene-livingroom')">❮ </div>
+            </div>
 
-        <div id="modal-wall" class="puzzle-modal">
-            <div class="close-btn" onclick="closeModal('modal-wall')">×</div>
-            <div id="alphabet-wall">
-                <div class="letter-row">
-                    <div class="letter-node"><div id="bulb-A" class="bulb"></div><div class="char">A</div></div>
-                    <div class="letter-node"><div id="bulb-B" class="bulb"></div><div class="char">B</div></div>
-                    <div class="letter-node"><div id="bulb-C" class="bulb"></div><div class="char">C</div></div>
-                    <div class="letter-node"><div id="bulb-D" class="bulb"></div><div class="char">D</div></div>
-                    <div class="letter-node"><div id="bulb-E" class="bulb"></div><div class="char">E</div></div>
-                    <div class="letter-node"><div id="bulb-F" class="bulb"></div><div class="char">F</div></div>
-                    <div class="letter-node"><div id="bulb-G" class="bulb"></div><div class="char">G</div></div>
-                    <div class="letter-node"><div id="bulb-H" class="bulb"></div><div class="char">H</div></div>
+            <div id="modal-wall" class="puzzle-modal">
+                <div class="close-btn" onclick="closeModal('modal-wall')">×</div>
+                <div id="alphabet-wall">
+                    <div class="letter-row">
+                        <div class="letter-node"><div id="bulb-A" class="bulb"></div><div class="char">A</div></div><div class="letter-node"><div id="bulb-B" class="bulb"></div><div class="char">B</div></div><div class="letter-node"><div id="bulb-C" class="bulb"></div><div class="char">C</div></div><div class="letter-node"><div id="bulb-D" class="bulb"></div><div class="char">D</div></div><div class="letter-node"><div id="bulb-E" class="bulb"></div><div class="char">E</div></div><div class="letter-node"><div id="bulb-F" class="bulb"></div><div class="char">F</div></div><div class="letter-node"><div id="bulb-G" class="bulb"></div><div class="char">G</div></div><div class="letter-node"><div id="bulb-H" class="bulb"></div><div class="char">H</div></div>
+                    </div>
+                    <div class="letter-row">
+                        <div class="letter-node"><div id="bulb-I" class="bulb"></div><div class="char">I</div></div><div class="letter-node"><div id="bulb-J" class="bulb"></div><div class="char">J</div></div><div class="letter-node"><div id="bulb-K" class="bulb"></div><div class="char">K</div></div><div class="letter-node"><div id="bulb-L" class="bulb"></div><div class="char">L</div></div><div class="letter-node"><div id="bulb-M" class="bulb"></div><div class="char">M</div></div><div class="letter-node"><div id="bulb-N" class="bulb"></div><div class="char">N</div></div><div class="letter-node"><div id="bulb-O" class="bulb"></div><div class="char">O</div></div><div class="letter-node"><div id="bulb-P" class="bulb"></div><div class="char">P</div></div>
+                    </div>
+                    <div class="letter-row">
+                        <div class="letter-node"><div id="bulb-Q" class="bulb"></div><div class="char">Q</div></div><div class="letter-node"><div id="bulb-R" class="bulb"></div><div class="char">R</div></div><div class="letter-node"><div id="bulb-S" class="bulb"></div><div class="char">S</div></div><div class="letter-node"><div id="bulb-T" class="bulb"></div><div class="char">T</div></div><div class="letter-node"><div id="bulb-U" class="bulb"></div><div class="char">U</div></div><div class="letter-node"><div id="bulb-V" class="bulb"></div><div class="char">V</div></div><div class="letter-node"><div id="bulb-W" class="bulb"></div><div class="char">W</div></div>
+                    </div>
+                    <div class="letter-row">
+                        <div class="letter-node"><div id="bulb-X" class="bulb"></div><div class="char">X</div></div><div class="letter-node"><div id="bulb-Y" class="bulb"></div><div class="char">Y</div></div><div class="letter-node"><div id="bulb-Z" class="bulb"></div><div class="char">Z</div></div>
+                    </div>
                 </div>
-                <div class="letter-row">
-                    <div class="letter-node"><div id="bulb-I" class="bulb"></div><div class="char">I</div></div>
-                    <div class="letter-node"><div id="bulb-J" class="bulb"></div><div class="char">J</div></div>
-                    <div class="letter-node"><div id="bulb-K" class="bulb"></div><div class="char">K</div></div>
-                    <div class="letter-node"><div id="bulb-L" class="bulb"></div><div class="char">L</div></div>
-                    <div class="letter-node"><div id="bulb-M" class="bulb"></div><div class="char">M</div></div>
-                    <div class="letter-node"><div id="bulb-N" class="bulb"></div><div class="char">N</div></div>
-                    <div class="letter-node"><div id="bulb-O" class="bulb"></div><div class="char">O</div></div>
-                    <div class="letter-node"><div id="bulb-P" class="bulb"></div><div class="char">P</div></div>
-                </div>
-                <div class="letter-row">
-                    <div class="letter-node"><div id="bulb-Q" class="bulb"></div><div class="char">Q</div></div>
-                    <div class="letter-node"><div id="bulb-R" class="bulb"></div><div class="char">R</div></div>
-                    <div class="letter-node"><div id="bulb-S" class="bulb"></div><div class="char">S</div></div>
-                    <div class="letter-node"><div id="bulb-T" class="bulb"></div><div class="char">T</div></div>
-                    <div class="letter-node"><div id="bulb-U" class="bulb"></div><div class="char">U</div></div>
-                    <div class="letter-node"><div id="bulb-V" class="bulb"></div><div class="char">V</div></div>
-                    <div class="letter-node"><div id="bulb-W" class="bulb"></div><div class="char">W</div></div>
-                </div>
-                <div class="letter-row">
-                    <div class="letter-node"><div id="bulb-X" class="bulb"></div><div class="char">X</div></div>
-                    <div class="letter-node"><div id="bulb-Y" class="bulb"></div><div class="char">Y</div></div>
-                    <div class="letter-node"><div id="bulb-Z" class="bulb"></div><div class="char">Z</div></div>
+                <button style="margin-top: 2vh; padding: 1vh 2vh; background:#e50914; color:#fff; border:none; font-weight:bold; cursor:pointer; font-size:2vh;" onclick="playLights()">仔细观察灯光顺序</button>
+            </div>
+
+            <div id="modal-terminal" class="puzzle-modal">
+                <div class="close-btn" onclick="closeModal('modal-terminal')">×</div>
+                <div id="terminal">
+                    <p>HAWKINS NATIONAL LABORATORY<br>===========================</p>
+                    <p style="color:#aaa; font-size:2vh;">[机密便签] 凯撒密码 (向后偏移1位):<br>密文: F M F W F O <br>明文: ? ? ? ? ? ?</p>
+                    <p>SUBJECT ID REQUIRED:</p>
+                    > <input type="text" id="term-pwd" class="term-input" maxlength="6">
+                    <br><br>
+                    <button style="background:#0f0; color:#000; padding:1vh 2vh; border:none; cursor:pointer; font-weight:bold; font-size:2vh;" onclick="checkTerminal()">LOGIN</button>
                 </div>
             </div>
-            <button style="margin-top: 30px; padding: 10px 20px; background:#e50914; color:#fff; border:none; font-weight:bold; cursor:pointer;" onclick="playLights()">仔细观察灯光顺序</button>
-        </div>
 
-        <div id="modal-terminal" class="puzzle-modal">
-            <div class="close-btn" onclick="closeModal('modal-terminal')">×</div>
-            <div id="terminal">
-                <p>HAWKINS NATIONAL LABORATORY<br>===========================</p>
-                <p style="color:#aaa; font-size:14px;">[机密便签] 凯撒密码 (向后偏移1位):<br>密文: F M F W F O <br>明文: ? ? ? ? ? ?</p>
-                <p>SUBJECT ID REQUIRED:</p>
-                > <input type="text" id="term-pwd" class="term-input" maxlength="6">
-                <br><br>
-                <button style="background:#0f0; color:#000; padding:5px 15px; border:none; cursor:pointer; font-weight:bold;" onclick="checkTerminal()">LOGIN</button>
+            <div id="modal-safe" class="puzzle-modal">
+                <div class="close-btn" onclick="closeModal('modal-safe')">×</div>
+                <div style="background:#333; padding: 4vh; border-radius: 10px; text-align:center;">
+                    <h3 style="color:#fff; margin-top:0;">地狱火俱乐部 武器箱</h3>
+                    <p style="color:#aaa; font-size:2vh;">箱子上有一个四位字母的机械锁...</p>
+                    <input type="text" id="safe-pwd" style="font-size: 4vh; width: 15vh; text-align: center; text-transform: uppercase;" maxlength="4">
+                    <br><br>
+                    <button style="padding:1.5vh 3vh; font-weight:bold; cursor:pointer; font-size:2vh;" onclick="checkSafe()">尝试开锁</button>
+                </div>
             </div>
         </div>
-
-        <div id="modal-safe" class="puzzle-modal">
-            <div class="close-btn" onclick="closeModal('modal-safe')">×</div>
-            <div style="background:#333; padding: 30px; border-radius: 10px; text-align:center;">
-                <h3 style="color:#fff;">地狱火俱乐部 武器箱</h3>
-                <p style="color:#aaa;">箱子上有一个四位字母的机械锁...</p>
-                <input type="text" id="safe-pwd" style="font-size: 30px; width: 120px; text-align: center; text-transform: uppercase;" maxlength="4">
-                <br><br>
-                <button style="padding:10px 20px; font-weight:bold; cursor:pointer;" onclick="checkSafe()">尝试开锁</button>
-            </div>
-        </div>
-
     </div>
 
     <div id="scrapbook-world">
-        <div id="page-1" class="page" style="justify-content: center;">
-            <h1 style="font-size: 42px; color: #ff6b81; transform: rotate(-5deg); margin-bottom: 50px;">To 最好最酷的<br>杨婧怡 🦋</h1>
-            <div class="polaroid" style="transform: rotate(3deg);">
-                <div class="washi-tape tape-purple" style="top: -15px; left: 50%; transform: translateX(-50%) rotate(-2deg);"></div>
+        <div id="page-1" class="page">
+            <div class="polaroid" style="transform: rotate(-3deg);">
                 <img src="1.jpg" alt="合照">
             </div>
-            <p class="text-block" style="color: #666; font-size: 20px;">大难不死，必有后福！<br>请查收你的专属生日手账<br>From 你的好厚米：陈燕妃</p>
-            <button class="nav-btn" onclick="goToScrapbookPage(2)">翻开下一页 ➡️</button>
+            <div class="text-container">
+                <h1 style="font-size: 5vh; color: #ff6b81; transform: rotate(-5deg);">To 最好最酷的<br>杨婧怡 🦋</h1>
+                <p class="text-block" style="color: #666;">大难不死，必有后福！<br>请查收你的专属生日手账<br>From 你的好厚米：陈燕妃</p>
+                <button class="nav-btn" onclick="goToScrapbookPage(2)">翻开下一页 ➡️</button>
+            </div>
         </div>
 
         <div id="page-2" class="page">
-            <div class="text-block highlight" style="margin-top: 40px; transform: rotate(-3deg);">从小学三年级，<br>到现在大三！</div>
-            <div class="polaroid" style="transform: rotate(-4deg); width: 85%;">
-                <div class="washi-tape tape-blue" style="top: -10px; right: -20px; transform: rotate(45deg);"></div>
-                <img src="2.jpg" alt="KTV">
+            <div class="text-container">
+                <div class="text-block highlight" style="transform: rotate(-3deg);">从小学三年级，<br>到现在大三！</div>
+                <div class="text-block">十几年啦！作为你的<span class="highlight">拜把子兄弟</span>，<br>我可是你肚子里<span class="highlight-blue">最懂你的蛔虫</span>！<br>这泼天的缘分，咱们是一辈子的好朋友！👭</div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="nav-btn" style="background:#ccc;" onclick="goToScrapbookPage(1)">⬅️</button>
+                    <button class="nav-btn" onclick="goToScrapbookPage(3)">下一页 ➡️</button>
+                </div>
             </div>
-            <div class="text-block">十几年啦！作为你的<span class="highlight">拜把子兄弟</span>，<br>我可是你肚子里<span class="highlight-blue">最懂你的蛔虫</span>！<br>这泼天的缘分，咱们是一辈子的好朋友！👭</div>
-            <div style="display: flex; gap: 20px; margin-top: auto; margin-bottom: 30px;">
-                <button class="nav-btn" style="margin:0; background:#ccc;" onclick="goToScrapbookPage(1)">⬅️</button>
-                <button class="nav-btn" style="margin:0;" onclick="goToScrapbookPage(3)">下一页 ➡️</button>
+            <div class="polaroid" style="transform: rotate(4deg);">
+                <img src="2.jpg" alt="KTV">
             </div>
         </div>
 
         <div id="page-3" class="page">
-            <div class="polaroid" style="transform: rotate(2deg); margin-top: 50px;">
-                <div class="washi-tape tape-yellow" style="bottom: -15px; left: -20px; transform: rotate(-25deg);"></div>
+            <div class="polaroid" style="transform: rotate(-2deg);">
                 <img src="3.jpg" alt="赛车">
-                <img src="6.png" class="luhan-logo" style="top: -30px; right: -20px;" alt="Luhan Logo">
             </div>
-            <div class="text-block" style="margin-top: 30px;">
-                新的一岁，祝你手速爆棚！<br>
-                <span class="highlight" style="color: #f6d365;">鹿晗 🦌</span>、<span class="highlight-blue">黄明昊 🛹</span>、<br>还有 <span class="highlight" style="color: #a29bfe;">BKPP</span> 的演唱会门票，<br>统统抢到第一排！！🎟️
-            </div>
-            <div style="display: flex; gap: 20px; margin-top: auto; margin-bottom: 30px;">
-                <button class="nav-btn" style="margin:0; background:#ccc;" onclick="goToScrapbookPage(2)">⬅️</button>
-                <button class="nav-btn" style="margin:0;" onclick="goToScrapbookPage(4)">下一页 ➡️</button>
+            <div class="text-container">
+                <div class="text-block">
+                    新的一岁，祝你手速爆棚！<br>
+                    <span class="highlight" style="color: #f6d365;">鹿晗 🦌</span>、<span class="highlight-blue">黄明昊 🛹</span>、<br>还有 <span class="highlight" style="color: #a29bfe;">BKPP</span> 的演唱会门票，<br>统统抢到第一排！！🎟️
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="nav-btn" style="background:#ccc;" onclick="goToScrapbookPage(2)">⬅️</button>
+                    <button class="nav-btn" onclick="goToScrapbookPage(4)">下一页 ➡️</button>
+                </div>
             </div>
         </div>
 
         <div id="page-4" class="page">
-            <div class="text-block highlight-blue" style="margin-top: 40px;">逢考必过！逢奖必拿！</div>
-            <div class="polaroid" style="transform: rotate(-2deg);">
-                <div class="washi-tape" style="top: -15px; left: 10px; transform: rotate(-5deg);"></div>
-                <img src="4.jpg" alt="火炉">
+            <div class="text-container">
+                <div class="text-block highlight-blue">逢考必过！逢奖必拿！</div>
+                <div class="text-block">祝我们婧怡：<br><span class="highlight">专升本一击必中！</span>顺顺利利读心仪学校！🎓<br>毕业后轻轻松松赚大钱，<br>包养我这个好厚米！💰</div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="nav-btn" style="background:#ccc;" onclick="goToScrapbookPage(3)">⬅️</button>
+                    <button class="nav-btn" onclick="goToScrapbookPage(5)">拆开最后惊喜 🎁</button>
+                </div>
             </div>
-            <div class="text-block">祝我们婧怡：<br><span class="highlight">专升本一击必中！</span>顺顺利利读心仪学校！🎓<br>毕业后轻轻松松赚大钱，<br>包养我这个好厚米！💰</div>
-            <div style="display: flex; gap: 20px; margin-top: auto; margin-bottom: 30px;">
-                <button class="nav-btn" style="margin:0; background:#ccc;" onclick="goToScrapbookPage(3)">⬅️</button>
-                <button class="nav-btn" style="margin:0;" onclick="goToScrapbookPage(5)">拆开最后惊喜 🎁</button>
+            <div class="polaroid" style="transform: rotate(2deg);">
+                <img src="4.jpg" alt="火炉">
             </div>
         </div>
 
-        <div id="page-5" class="page">
-            <h1 class="highlight" style="font-size: 48px; margin-top: 30px;">生日快乐！</h1>
+        <div id="page-5" class="page" style="flex-direction: column; justify-content: center;">
+            <h1 class="highlight" style="font-size: 6vh; margin-bottom: 2vh;">生日快乐！</h1>
             <img src="5.png" class="sticker-png" style="transform: rotate(3deg);" alt="自拍">
-            <div style="font-size: 60px; margin: 10px 0; animation: breathe 2s infinite;">🎂</div>
-            <div class="text-block" style="font-size: 22px;">愿你未来生活顺遂，天天开心。<br>彼此友谊长存，<br>就是每一年最好的生日礼物！✨</div>
+            <div class="text-block" style="font-size: 3vh; margin-top: 3vh;">愿你未来生活顺遂，天天开心。<br>彼此友谊长存，<br>就是每一年最好的生日礼物！✨</div>
         </div>
     </div>
 
     <script>
-        // ==========================================
-        // 游戏引擎与逻辑
-        // ==========================================
-        
-        let selectedItem = null;
-        let hasTape = false;
-        let musicPlaying = false;
-        let hasBat = false;
-        let safeUnlocked = false;
+        // 预加载逻辑：确保核心资源加载完毕再显示开始按钮
+        window.addEventListener('load', function() {
+            document.getElementById('loading-text').innerText = "[系统提示] 资源加载完毕，端口已就绪。";
+            document.getElementById('start-btn').style.display = 'block';
+        });
+
+        // 强绑点击事件播放音乐（突破手机静音限制）
+        function startGame() {
+            let bgm = document.getElementById('st-bgm');
+            bgm.play().catch(e => console.log("等待用户交互授权音频..."));
+            document.getElementById('init-screen').style.display = 'none';
+            document.getElementById('game-container').style.display = 'block';
+        }
+
+        // 游戏核心变量
+        let selectedItem = null, hasTape = false, musicPlaying = false, hasBat = false, safeUnlocked = false;
 
         function showMsg(text) { document.getElementById('dialogue').innerText = text; }
 
-        function startGame() {
-            document.getElementById('init-screen').style.display = 'none';
-            document.getElementById('game-container').style.display = 'block';
-            document.getElementById('st-bgm').play().catch(e=>{});
-        }
-
-        // 场景切换
         function switchScene(sceneId) {
             document.querySelectorAll('.scene').forEach(el => el.classList.remove('active'));
             document.getElementById(sceneId).classList.add('active');
@@ -281,7 +264,6 @@
             if (sceneId === 'scene-gate') showMsg("好冷... 这里是通往逆世界的大门！小心！");
         }
 
-        // 物品栏交互
         function selectItem(item) {
             document.querySelectorAll('.inv-box').forEach(el => el.classList.remove('selected'));
             if (selectedItem === item) {
@@ -291,21 +273,19 @@
                 selectedItem = item;
                 document.getElementById('inv-item-' + item).classList.add('selected');
                 if(item === 'tape') showMsg("一盘复古录音带。不知道里面藏着什么信息。");
-                if(item === 'bat') showMsg("史蒂夫的狼牙棒，上面钉满了生锈的铁钉，物理超度首选。");
+                if(item === 'bat') showMsg("史蒂夫的狼牙棒，物理超度首选。");
             }
         }
 
         function openModal(id) { document.getElementById(id).style.display = 'flex'; }
         function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
-        // 核心交互逻辑
         function interact(obj) {
             if (obj === 'terminal') {
                 if(hasTape) { showMsg("我已经破解过这台电脑了，抽屉是空的。"); return; }
                 openModal('modal-terminal');
                 showMsg("电脑需要输入主控密码。旁边有一张关于凯撒密码学的便签...");
             }
-            
             if (obj === 'walkman') {
                 if (musicPlaying) { showMsg("隐藏在随身听里的磁带正在转动，墙上的彩灯正在响应音乐！"); return; }
                 if (selectedItem === 'tape') {
@@ -317,7 +297,6 @@
                     showMsg("桌上放着一台 SONY 复古随身听... 磁带仓是空的，需要找盘磁带放进去。");
                 }
             }
-
             if (obj === 'wall') {
                 if (musicPlaying) {
                     openModal('modal-wall');
@@ -326,26 +305,21 @@
                     showMsg("墙上挂着经典的彩灯，但是目前没有通电，漆黑一片。似乎需要先播放什么东西激活它。");
                 }
             }
-
             if (obj === 'safe') {
                 if (safeUnlocked) { showMsg("箱子已经空了。"); return; }
                 openModal('modal-safe');
                 showMsg("桌上放着一个‘地狱火俱乐部’的密码箱，沉甸甸的。需要4个字母密码。");
             }
-
             if (obj === 'demogorgon') {
                 if (selectedItem === 'bat') {
-                    showMsg("你挥舞狼牙棒，狠狠地砸向了魔王的脑袋！它吃痛退后了！快长按按钮爆发超能力！");
+                    showMsg("你挥舞狼牙棒，狠狠地砸向了魔王的脑袋！快长按按钮爆发超能力！");
                     document.getElementById('power-btn').style.display = 'block';
                 } else {
-                    showMsg("吼！！！通道被可怕的魔王堵住了！赤手空拳去打它纯属送人头，我必须找到致命的武器！");
-                    document.getElementById('demo-monster').style.transform = 'translate(-50%, -50%) scale(1.2)';
-                    setTimeout(() => { document.getElementById('demo-monster').style.transform = 'translate(-50%, -50%) scale(1)'; }, 300);
+                    showMsg("吼！！！通道被可怕的魔王堵住了！我必须找到致命的武器！");
                 }
             }
         }
 
-        // 解密：凯撒密码 (F M F W F O 向前推1位 = E L E V E N)
         function checkTerminal() {
             let pwd = document.getElementById('term-pwd').value.toUpperCase();
             if (pwd === 'ELEVEN') {
@@ -359,28 +333,21 @@
             }
         }
 
-        // 解密：字母墙闪烁
         function playLights() {
-            const word = ['D', 'E', 'M', 'O']; // 正确的箱子密码
+            const word = ['D', 'E', 'M', 'O']; 
             const colors = ['#00f', '#f00', '#0f0', '#ff0']; 
             let delay = 0;
-            
             word.forEach((char, index) => {
                 setTimeout(() => {
                     const bulb = document.getElementById(`bulb-${char}`);
                     bulb.style.background = colors[index];
                     bulb.style.boxShadow = `0 0 20px 10px ${colors[index]}`;
-                    
-                    setTimeout(() => {
-                        bulb.style.background = '#333';
-                        bulb.style.boxShadow = 'none';
-                    }, 800);
+                    setTimeout(() => { bulb.style.background = '#333'; bulb.style.boxShadow = 'none'; }, 800);
                 }, delay);
                 delay += 1500; 
             });
         }
 
-        // 解密：地狱火箱子
         function checkSafe() {
             let pwd = document.getElementById('safe-pwd').value.toUpperCase();
             if (pwd === 'DEMO') {
@@ -395,13 +362,12 @@
             }
         }
 
-        // 最终逃脱：超能力触发
         let powerTimeout;
         const powerBtn = document.getElementById('power-btn');
         function startElevenPower() {
             showMsg("精神力汇聚中... 坚持住！撕开时空的裂缝！");
             document.getElementById('scene-gate').style.filter = 'contrast(200%) hue-rotate(90deg)';
-            powerTimeout = setTimeout(escapeToScrapbook, 2500); // 需长按2.5秒
+            powerTimeout = setTimeout(escapeToScrapbook, 2500); 
         }
         function cancelElevenPower() {
             clearTimeout(powerTimeout);
@@ -411,34 +377,30 @@
         powerBtn.addEventListener('mousedown', startElevenPower);
         powerBtn.addEventListener('mouseup', cancelElevenPower);
         powerBtn.addEventListener('mouseleave', cancelElevenPower);
-        powerBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startElevenPower(); });
-        powerBtn.addEventListener('touchend', (e) => { e.preventDefault(); cancelElevenPower(); });
+        powerBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startElevenPower(); }, {passive: false});
+        powerBtn.addEventListener('touchend', (e) => { e.preventDefault(); cancelElevenPower(); }, {passive: false});
 
         function escapeToScrapbook() {
             document.getElementById('white-flash').style.opacity = '1';
             setTimeout(() => {
                 document.getElementById('st-bgm').pause();
-                document.getElementById('game-container').style.display = 'none';
+                document.getElementById('game-wrapper').style.display = 'none';
                 
-                document.getElementById('happy-bgm').play();
+                let happyBgm = document.getElementById('happy-bgm');
+                happyBgm.play().catch(e => console.log("播放失败"));
+                
                 document.getElementById('scrapbook-world').style.opacity = '1';
                 goToScrapbookPage(1);
-                
                 setTimeout(() => { document.getElementById('white-flash').style.opacity = '0'; }, 500);
-            }, 2000); // 极致白屏转场 2 秒
+            }, 2000); 
         }
 
-        // ==========================================
-        // 手账系统逻辑
-        // ==========================================
         function goToScrapbookPage(pageNum) {
             document.querySelectorAll('.page').forEach((page, index) => {
                 page.classList.remove('active', 'prev');
                 if (index + 1 < pageNum) page.classList.add('prev');
             });
             document.getElementById(`page-${pageNum}`).classList.add('active');
-            
-            // 最后一页放礼炮
             if (pageNum === 5) setTimeout(fireConfetti, 500);
         }
 
